@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { State } from '../state/entity';
 import { City } from '../city/entity';
 import { Pincode } from '../pincode/entity';
+import { Address } from '../address/entity';
 
 @Entity('countries')
 export class Country {
@@ -22,6 +23,9 @@ export class Country {
 
   @OneToMany(() => Pincode, pincode => pincode.country)
   pincodes: Pincode[];
+
+  @OneToMany(() => Address, address => address.country)
+  addresses: Address[];
 
   @CreateDateColumn()
   created_at: Date;
