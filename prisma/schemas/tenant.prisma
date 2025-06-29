@@ -52,6 +52,13 @@ model Organization {
   gstReturns    GSTReturn[]
   auditLogs     AuditLog[]
 
+  // Customization relations
+  tenantCustomizations TenantCustomization[]
+  tenantThemes         TenantTheme[]
+  tenantWidgets        TenantWidget[]
+  tenantCustomFields   TenantCustomField[]
+  tenantWorkflows      TenantWorkflow[]
+
   @@map("organizations")
 }
 
@@ -149,6 +156,19 @@ model User {
 
   // Sessions
   sessions Session[]
+
+  // Customization relations
+  tenantCustomizationsCreated    TenantCustomization[] @relation("TenantCustomizationCreatedBy")
+  tenantCustomizationsUpdated    TenantCustomization[] @relation("TenantCustomizationUpdatedBy")
+  tenantThemesCreated            TenantTheme[]         @relation("TenantThemeCreatedBy")
+  tenantThemesUpdated            TenantTheme[]         @relation("TenantThemeUpdatedBy")
+  tenantWidgets                  TenantWidget[]
+  tenantWidgetsCreated           TenantWidget[]        @relation("TenantWidgetCreatedBy")
+  tenantWidgetsUpdated           TenantWidget[]        @relation("TenantWidgetUpdatedBy")
+  tenantCustomFieldsCreated      TenantCustomField[]   @relation("TenantCustomFieldCreatedBy")
+  tenantCustomFieldsUpdated      TenantCustomField[]   @relation("TenantCustomFieldUpdatedBy")
+  tenantWorkflowsCreated         TenantWorkflow[]      @relation("TenantWorkflowCreatedBy")
+  tenantWorkflowsUpdated         TenantWorkflow[]      @relation("TenantWorkflowUpdatedBy")
 
   @@map("users")
 }
@@ -360,6 +380,9 @@ model Customer {
   assignedUser User?         @relation("CustomerAssignments", fields: [assignedTo], references: [id])
   transactions Transaction[]
 
+  // Custom fields
+  customFields      Json     @default("{}") // Store custom field values
+
   @@unique([organizationId, code])
   @@map("customers")
 }
@@ -401,6 +424,9 @@ model Supplier {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   stateBranch  StateBranch   @relation(fields: [stateBranchId], references: [id])
   transactions Transaction[]
+
+  // Custom fields
+  customFields      Json     @default("{}") // Store custom field values
 
   @@unique([organizationId, code])
   @@map("suppliers")
@@ -444,6 +470,9 @@ model Product {
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inventory        InventoryItem[]
   transactionItems TransactionItem[]
+
+  // Custom fields
+  customFields      Json     @default("{}") // Store custom field values
 
   @@unique([organizationId, code])
   @@map("products")
@@ -584,6 +613,9 @@ model Transaction {
   gstReturn       GSTReturn?        @relation(fields: [gstReturnId], references: [id])
   createdByUser   User              @relation("TransactionCreator", fields: [createdBy], references: [id])
   items           TransactionItem[]
+
+  // Custom fields
+  customFields      Json     @default("{}") // Store custom field values
 
   @@map("transactions")
 }
@@ -759,4 +791,169 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId, timestamp])
   @@map("audit_logs")
+}
+
+model TenantCustomization {
+  id                String   @id @default(cuid())
+  organizationId    String
+  
+  // Branding configuration
+  branding          Json     @default("{}") // { logo, primaryColor, secondaryColor, accentColor, fontFamily, theme, customCSS }
+  
+  // Dashboard configuration
+  dashboard         Json     @default("{}") // { layout, widgets, defaultView, quickActions }
+  
+  // Custom fields configuration
+  customFields      Json     @default("{}") // { customers: [], products: [], transactions: [] }
+  
+  // Workflow configuration
+  workflows         Json     @default("{}") // { approvals: [], notifications: [], automations: [] }
+  
+  // User preferences
+  preferences       Json     @default("{}") // { dateFormat, numberFormat, timezone, currency, language }
+  
+  // Metadata
+  version           Int      @default(1)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantCustomizationCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantCustomizationUpdatedBy", fields: [updatedBy], references: [id])
+  
+  @@map("tenant_customizations")
+}
+
+model TenantTheme {
+  id                String   @id @default(cuid())
+  organizationId    String
+  
+  // Theme configuration
+  themeName         String
+  themeData         Json     // Complete theme configuration
+  
+  // Theme metadata
+  isDefault         Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  version           String   @default("1.0.0")
+  
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantThemeCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantThemeUpdatedBy", fields: [updatedBy], references: [id])
+  
+  @@unique([organizationId, themeName])
+  @@map("tenant_themes")
+}
+
+model TenantWidget {
+  id                String   @id @default(cuid())
+  organizationId    String
+  userId            String?  // null = organization-wide, specific user = personal widget
+  
+  // Widget configuration
+  widgetType        String   // 'gst-summary', 'revenue-chart', 'recent-transactions', etc.
+  widgetTitle       String
+  position          Json     // { x, y, w, h } for grid positioning
+  configuration     Json     @default("{}") // Widget-specific config
+  
+  // Widget metadata
+  isVisible         Boolean  @default(true)
+  isLocked          Boolean  @default(false) // Prevents user modification
+  order             Int      @default(0)
+  
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantWidgetCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantWidgetUpdatedBy", fields: [updatedBy], references: [id])
+  
+  @@map("tenant_widgets")
+}
+
+model TenantCustomField {
+  id                String   @id @default(cuid())
+  organizationId    String
+  
+  // Field configuration
+  entityType        String   // 'customer', 'product', 'transaction', 'supplier'
+  fieldName         String
+  fieldLabel        String
+  fieldType         String   // 'text', 'number', 'date', 'dropdown', 'checkbox', 'file', 'textarea'
+  
+  // Field options and validation
+  isRequired        Boolean  @default(false)
+  isVisible         Boolean  @default(true)
+  isEditable        Boolean  @default(true)
+  validationRules   Json     @default("{}") // { min, max, pattern, options, etc. }
+  defaultValue      String?
+  
+  // Display configuration
+  displayOrder      Int      @default(0)
+  groupName         String?  // For grouping fields in UI
+  helpText          String?
+  placeholder       String?
+  
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantCustomFieldCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantCustomFieldUpdatedBy", fields: [updatedBy], references: [id])
+  
+  @@unique([organizationId, entityType, fieldName])
+  @@map("tenant_custom_fields")
+}
+
+model TenantWorkflow {
+  id                String   @id @default(cuid())
+  organizationId    String
+  
+  // Workflow configuration
+  workflowName      String
+  workflowType      String   // 'approval', 'notification', 'automation'
+  entityType        String   // 'transaction', 'customer', 'product', etc.
+  
+  // Workflow definition
+  triggerConditions Json     @default("{}") // When this workflow triggers
+  actions           Json     @default("{}") // What actions to perform
+  approvalSteps     Json     @default("{}") // Multi-step approval process
+  
+  // Workflow metadata
+  isActive          Boolean  @default(true)
+  priority          Int      @default(0)
+  
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantWorkflowCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantWorkflowUpdatedBy", fields: [updatedBy], references: [id])
+  
+  @@unique([organizationId, workflowName])
+  @@map("tenant_workflows")
 }

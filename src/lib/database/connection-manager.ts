@@ -1,5 +1,6 @@
-import { PrismaClient as CentralPrismaClient } from '../../node_modules/.prisma/central'
-import { PrismaClient as TenantPrismaClient } from '../../node_modules/.prisma/tenant'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { CentralPrismaClient, TenantPrismaClient } from './clients'
 import crypto from 'crypto'
 
 // Database connection interfaces
@@ -38,7 +39,7 @@ export class CentralDatabaseManager {
     if (!this.instance) {
       this.instance = new CentralPrismaClient({
         datasources: {
-          db: {
+          centralDb: {
             url: process.env.CENTRAL_DATABASE_URL
           }
         }
@@ -72,7 +73,7 @@ export class TenantDatabaseManager {
         // Test connection health
         await client.$queryRaw`SELECT 1`
         return client
-      } catch (error) {
+      } catch {
         // Connection failed, remove and recreate
         console.warn(`Tenant ${tenantId} connection failed, recreating...`)
         await this.removeConnection(tenantId)
@@ -111,7 +112,7 @@ export class TenantDatabaseManager {
       // Create Prisma client
       const client = new TenantPrismaClient({
         datasources: {
-          db: {
+          tenantDb: {
             url: connectionUrl
           }
         }
@@ -178,7 +179,7 @@ export class TenantDatabaseManager {
       const connectionUrl = this.buildConnectionUrl(credentials)
       const testClient = new TenantPrismaClient({
         datasources: {
-          db: { url: connectionUrl }
+          tenantDb: { url: connectionUrl }
         }
       })
 
@@ -198,7 +199,7 @@ export class TenantDatabaseManager {
    */
   static async createTenantSchema(tenantId: string): Promise<void> {
     try {
-      const client = await this.getConnection(tenantId)
+      await this.getConnection(tenantId)
       
       // Run Prisma migrations for tenant schema
       // This would typically be done via Prisma CLI in deployment
@@ -298,7 +299,7 @@ export class TenantDatabaseManager {
    */
   private static decryptCredentials(encryptedData: any): TenantDbCredentials {
     try {
-      const { iv, authTag, encrypted } = typeof encryptedData === 'string' 
+      const { authTag, encrypted } = typeof encryptedData === 'string' 
         ? JSON.parse(encryptedData) 
         : encryptedData
 
