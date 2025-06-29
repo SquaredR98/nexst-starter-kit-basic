@@ -2,7 +2,43 @@
 // ABAC TYPES - Attribute-Based Access Control System
 // ============================================================================
 
-import { User, Organization, Role, Permission } from '@prisma/client';
+// Generic type definitions for ABAC system (independent of Prisma clients)
+// These match our schema structure but don't depend on generated clients
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  organizationId: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  organizationId: string;
+  isSystemRole: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Permission {
+  id: string;
+  name: string;
+  description?: string;
+  organizationId: string;
+  module: string;
+  action: string;
+  scope: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // ============================================================================
 // CORE ABAC TYPES

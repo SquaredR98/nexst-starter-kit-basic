@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // ============================================================================
 // CUSTOMER API - Example demonstrating ABAC permission enforcement
 // ============================================================================
@@ -34,7 +35,7 @@ const customerSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
     const validatedData = customerSchema.parse(body);
 
     // Create customer in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create the customer
       const newCustomer = await tx.customer?.create({
         data: {
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
       await tx.resourceAttribute.create({
         data: {
           organizationId: session.user.organizationId,
-          resourceType: 'customers', 
+          resourceType: 'customers',
           resourceId: newCustomer.id,
           attributeName: 'owner',
           attributeValue: session.user.id
@@ -204,14 +205,14 @@ async function getUserContext(userId: string, organizationId: string) {
   if (!user) return null;
 
   const attributes: Record<string, string | string[]> = {};
-  user.userAttributes.forEach(attr => {
+  user.userAttributes.forEach((attr: any) => {
     attributes[attr.attributeName] = attr.attributeValue;
   });
 
   return {
     userId: user.id,
     organizationId: user.organizationId,
-    roles: user.userRoles.map(ur => ur.role.code),
+    roles: user.userRoles.map((ur: any) => ur.role.code),
     department: user.department?.code,
     teams: Array.isArray(attributes.teams) ? attributes.teams : [],
     attributes
@@ -320,7 +321,7 @@ export async function PUT(request: NextRequest) {
 
     // Update customer logic here...
     const validatedData = customerSchema.partial().parse(body);
-    
+
     const updatedCustomer = await prisma.customer?.update({
       where: { id: customerId },
       data: validatedData

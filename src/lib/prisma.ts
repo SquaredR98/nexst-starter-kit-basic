@@ -1,11 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+// Legacy Prisma client - bridging to new connection manager
+// TODO: Migrate individual APIs to use central/tenant connections directly
+import { CentralDatabaseManager } from './database/connection-manager';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: ['query'],
-});
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma; 
+// Export central database connection as legacy prisma client
+// This maintains backward compatibility while we migrate APIs
+export const prisma = CentralDatabaseManager.getInstance(); 

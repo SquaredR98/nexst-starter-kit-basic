@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // ============================================================================
 // PERMISSION CHECK API - Single and Bulk Permission Verification
 // ============================================================================
@@ -8,9 +9,9 @@ import { authOptions } from '@/lib/auth';
 import { ruleEngine } from '@/lib/abac/rule-engine';
 import { z } from 'zod';
 import { 
-  CheckPermissionRequest, 
+  // CheckPermissionRequest, 
   CheckPermissionResponse,
-  BulkPermissionCheckRequest,
+  // BulkPermissionCheckRequest,
   BulkPermissionCheckResponse
 } from '@/types/abac';
 

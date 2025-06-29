@@ -1,0 +1,354 @@
+// Central Database Schema - Platform Management
+// Handles tenant registry, subscriptions, GST reference data, and cross-tenant audit
+
+generator centralClient {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/central"
+}
+
+datasource centralDb {
+  provider = "postgresql"
+  url      = env("CENTRAL_DATABASE_URL")
+}
+
+// ============================================================================
+// PLATFORM TENANT REGISTRY
+// ============================================================================
+
+model PlatformTenant {
+  id           String  @id @default(cuid())
+  companyName  String
+  slug         String  @unique
+  corporateGST String? // Main company GST number
+  industry     String?
+  contactEmail String
+  contactPhone String?
+
+  // Database Configuration (Encrypted)
+  databaseConfig Json // Encrypted tenant database credentials
+  databaseUrl    String? // Optional: if using connection string
+  databaseStatus DatabaseStatus @default(CONNECTING)
+
+  // Business Information
+  country  String @default("IN")
+  currency String @default("INR")
+  timezone String @default("Asia/Kolkata")
+
+  // Platform Status
+  isActive          Boolean          @default(true)
+  isPlatformManaged Boolean          @default(false) // true for SaaS, false for on-premise
+  onboardingStatus  OnboardingStatus @default(PENDING)
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastConnectedAt DateTime?
+
+  // Relations
+  subscription  PlatformSubscription?
+  stateBranches PlatformStateBranch[]
+  auditLogs     PlatformAuditLog[]
+  apiKeys       PlatformApiKey[]
+
+  @@map("platform_tenants")
+}
+
+model PlatformStateBranch {
+  id           String  @id @default(cuid())
+  tenantId     String
+  stateName    String // "Maharashtra", "Karnataka"
+  stateCode    String // "MH", "KA"
+  gstNumber    String // State-specific GST registration
+  branchName   String // "Mumbai Office", "Bangalore Branch"
+  address      Json // Complete address with pin code
+  isHeadOffice Boolean @default(false)
+  isActive     Boolean @default(true)
+
+  // GST Configuration
+  gstConfiguration Json // State-specific GST settings
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant PlatformTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, stateCode])
+  @@map("platform_state_branches")
+}
+
+enum DatabaseStatus {
+  CONNECTING
+  CONNECTED
+  FAILED
+  MAINTENANCE
+  MIGRATING
+}
+
+enum OnboardingStatus {
+  PENDING
+  DATABASE_SETUP
+  STATE_CONFIGURATION
+  USER_SETUP
+  COMPLETED
+  FAILED
+}
+
+// ============================================================================
+// SUBSCRIPTION MANAGEMENT
+// ============================================================================
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+model SubscriptionPlan {
+  id               String       @id @default(cuid())
+  name             String
+  description      String?
+  billingCycle     BillingCycle
+  pricePerMonth    Float
+  pricePerYear     Float?
+  maxUsers         Int          @default(10)
+  maxStateBranches Int          @default(1)
+  features         Json // Available features
+  isActive         Boolean      @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subscriptions PlatformSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model PlatformSubscription {
+  id       String             @id @default(cuid())
+  tenantId String             @unique
+  planId   String
+  status   SubscriptionStatus @default(TRIAL)
+
+  // Billing
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  billingCycle       BillingCycle
+  amount             Float
+  currency           String       @default("INR")
+
+  // Usage Tracking
+  usersCount         Int @default(0)
+  stateBranchesCount Int @default(0)
+
+  // Payment
+  lastPaymentDate DateTime?
+  nextPaymentDate DateTime?
+  paymentMethod   String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant PlatformTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("platform_subscriptions")
+}
+
+// ============================================================================
+// GST REFERENCE DATA (CENTRALIZED)
+// ============================================================================
+
+model Country {
+  id       String   @id @default(cuid())
+  name     String
+  code     String   @unique // "IN", "US", "UK"
+  currency String // "INR", "USD", "GBP"
+  timezone String[]
+  isActive Boolean  @default(true)
+
+  // Relations
+  states State[]
+
+  @@map("countries")
+}
+
+model State {
+  id           String  @id @default(cuid())
+  countryId    String
+  name         String // "Maharashtra", "Karnataka"
+  code         String // "MH", "KA"
+  gstStateCode String // "27", "29" (for GST purposes)
+  isActive     Boolean @default(true)
+
+  // Relations
+  country  Country   @relation(fields: [countryId], references: [id])
+  cities   City[]
+  gstRates GSTRate[]
+
+  @@unique([countryId, code])
+  @@map("states")
+}
+
+model City {
+  id          String   @id @default(cuid())
+  stateId     String
+  name        String
+  postalCodes String[] // Array of postal codes for this city
+  isActive    Boolean  @default(true)
+
+  // Relations
+  state State @relation(fields: [stateId], references: [id])
+
+  @@map("cities")
+}
+
+model GSTRate {
+  id          String  @id @default(cuid())
+  stateId     String? // NULL for national rates
+  category    String // "goods", "services", "luxury", etc.
+  hsn         String? // HSN/SAC code
+  description String
+
+  // Tax Rates
+  cgstRate Float @default(0)
+  sgstRate Float @default(0)
+  igstRate Float @default(0)
+  cessRate Float @default(0)
+
+  // Validity
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive      Boolean   @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  state State? @relation(fields: [stateId], references: [id])
+
+  @@map("gst_rates")
+}
+
+model GSTComplianceSchedule {
+  id          String              @id @default(cuid())
+  returnType  GSTReturnType
+  description String
+  frequency   ComplianceFrequency
+  dueDays     Int // Days after month/quarter end
+  penaltyRate Float               @default(0)
+  isActive    Boolean             @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gst_compliance_schedules")
+}
+
+enum GSTReturnType {
+  GSTR1 // Outward supplies
+  GSTR3B // Summary return
+  GSTR9 // Annual return
+  GSTR2A // Auto-populated inward supplies
+  GSTR4 // Quarterly return for composition dealers
+}
+
+enum ComplianceFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+// ============================================================================
+// PLATFORM API MANAGEMENT
+// ============================================================================
+
+model PlatformApiKey {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  keyHash     String    @unique // Hashed API key
+  permissions Json // API permissions
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant PlatformTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("platform_api_keys")
+}
+
+// ============================================================================
+// CROSS-TENANT AUDIT LOGGING
+// ============================================================================
+
+model PlatformAuditLog {
+  id       String  @id @default(cuid())
+  tenantId String? // NULL for platform-level actions
+
+  // Action Details
+  action     String // "TENANT_CREATED", "DATABASE_CONNECTED", etc.
+  entityType String // "tenant", "subscription", "user"
+  entityId   String?
+
+  // User Context
+  performedBy     String? // User ID or "SYSTEM"
+  performedByType String  @default("USER") // "USER", "ADMIN", "SYSTEM", "API"
+
+  // Details
+  details   Json? // Additional context
+  ipAddress String?
+  userAgent String?
+
+  // Results
+  success      Boolean @default(true)
+  errorMessage String?
+
+  // Timestamps
+  timestamp DateTime @default(now())
+
+  // Relations
+  tenant PlatformTenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, timestamp])
+  @@index([action, timestamp])
+  @@map("platform_audit_logs")
+}
+
+// ============================================================================
+// PLATFORM CONFIGURATION
+// ============================================================================
+
+model PlatformConfig {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       Json
+  description String?
+  isSecret    Boolean @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_config")
+}
