@@ -583,3 +583,77 @@ This project is proprietary software developed for Indian ERP businesses with GS
 For technical questions or implementation support, refer to the development documentation or create an issue in the project repository.
 
 **Note**: This README serves as the comprehensive technical documentation for the entire project evolution and architectural decisions made throughout the development process.
+
+## Getting Started
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Environment Setup
+
+Copy `.env.example` to `.env` and fill in your database and email credentials.
+
+### 3. Database Migrations
+
+Run migrations for the central database:
+
+```bash
+npx prisma migrate deploy --schema=./prisma/schemas/central.prisma
+```
+
+### 4. Seeding Data
+
+#### Central Database
+
+Seed the central database with countries, states, GST rates, plans, and platform config:
+
+```bash
+node scripts/seed-central.js
+```
+
+#### Tenant Database (for testing or manual setup)
+
+Set the `TENANT_DATABASE_URL` env variable to the target tenant DB, then run:
+
+```bash
+node scripts/seed-tenant.js
+```
+
+### 5. Onboarding a New Tenant
+
+- Visit `/onboarding` in your browser.
+- Complete the multi-step onboarding flow (organization, theme, review).
+- On completion, a new tenant is created, their database is provisioned and migrated, and their theme is saved.
+
+### 6. Super Admin Dashboard
+
+- Visit `/super-admin` as a Super Admin user.
+- Manage tenants, themes, and system configuration.
+- Use the **Migrations** tab to:
+  - View migration status for all tenants
+  - Run bulk migrations
+  - Rollback tenant databases
+  - Monitor migration results and backups
+
+### 7. Running the App
+
+```bash
+npm run dev
+```
+
+## Production Notes
+- Ensure your Postgres instance allows database creation for tenant provisioning.
+- Set strong secrets for JWT, encryption, and email.
+- Backups are stored in the `backups/` directory by default.
+- For production, configure email for onboarding notifications (see below).
+
+## Optional: Welcome Email on Onboarding
+- Configure SMTP/email settings in `.env`.
+- The onboarding API will send a welcome email to the tenant's contact email on successful setup.
+
+---
+
+For more details, see `DEVELOPMENT.md` and code comments.

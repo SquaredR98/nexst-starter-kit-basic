@@ -26,6 +26,32 @@ export interface ThemeColors {
   'info-foreground': string;
 }
 
+// Enhanced theme types for better customization
+export interface ThemeBorder {
+  radius: {
+    none: string;
+    sm: string;
+    base: string;
+    md: string;
+    lg: string;
+    xl: string;
+    '2xl': string;
+    '3xl': string;
+    full: string;
+  };
+  width: {
+    none: string;
+    thin: string;
+    base: string;
+    thick: string;
+  };
+  style: {
+    solid: string;
+    dashed: string;
+    dotted: string;
+  };
+}
+
 export interface ThemeTypography {
   fontFamily: {
     sans: string[];
@@ -81,21 +107,67 @@ export interface ThemeSpacing {
   };
 }
 
+// Enhanced TenantTheme with versioning and inheritance
 export interface TenantTheme {
   id: string;
   organizationId: string;
   themeName: string;
+  baseTheme?: string; // Inherit from preset theme
   colors: ThemeColors;
   typography: ThemeTypography;
   spacing: ThemeSpacing;
+  borders: ThemeBorder;
   customCSS?: string;
   logo?: string;
   favicon?: string;
   isDefault: boolean;
   isActive: boolean;
   version: string;
+  parentVersion?: string; // For inheritance tracking
   createdAt: string;
   updatedAt: string;
+}
+
+// Preset theme configuration
+export interface PresetThemeConfig {
+  id: string;
+  name: string;
+  description: string;
+  category: 'business' | 'creative' | 'minimal' | 'professional' | 'modern';
+  colors: ThemeColors;
+  typography: ThemeTypography;
+  spacing: ThemeSpacing;
+  borders: ThemeBorder;
+  preview: {
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
+  };
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+// Theme customization options for onboarding
+export interface ThemeCustomizationOptions {
+  presetThemes: PresetThemeConfig[];
+  colorPalettes: {
+    id: string;
+    name: string;
+    colors: Partial<ThemeColors>;
+    preview: string;
+  }[];
+  borderStyles: {
+    id: string;
+    name: string;
+    description: string;
+    borders: Partial<ThemeBorder>;
+  }[];
+  fontOptions: {
+    id: string;
+    name: string;
+    fontFamily: string[];
+    preview: string;
+  }[];
 }
 
 export interface BrandingConfig {
