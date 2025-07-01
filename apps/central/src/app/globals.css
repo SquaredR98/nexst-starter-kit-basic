@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+:root {
+  /* Color variables */
+  --background: 0 0% 100%;
+  --foreground: 222 84% 5%;
+  --primary: 222 84% 55%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 84% 45%;
+  --muted: 210 40% 93%;
+  --muted-foreground: 215 16% 47%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 84% 5%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 222 84% 55%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --radius: 0.5rem;
+
+  /* Font family variables */
+  --font-primary: var(--font-inter);
+  --font-heading: var(--font-inter);
+  --font-body: var(--font-inter);
+  --font-mono: ui-monospace, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.dark {
+  --background: 222 84% 5%;
+  --foreground: 210 40% 98%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 84% 5%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --card: 222 84% 5%;
+  --card-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 217 91% 60%;
+  --destructive: 0 62% 55%;
+  --destructive-foreground: 210 40% 98%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-primary), system-ui, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography classes */
+.font-primary { font-family: var(--font-primary), system-ui, sans-serif; }
+.font-heading { font-family: var(--font-heading), system-ui, sans-serif; }
+.font-body { font-family: var(--font-body), system-ui, sans-serif; }
+.font-mono { font-family: var(--font-mono); }
+
+/* Heading styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
+  color: hsl(var(--foreground));
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.75rem; }
+h4 { font-size: 1.5rem; }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1.125rem; }
+
+/* Theme utility classes */
+.bg-background { background-color: hsl(var(--background)); }
+.bg-foreground { background-color: hsl(var(--foreground)); }
+.bg-primary { background-color: hsl(var(--primary)); }
+.bg-primary-foreground { background-color: hsl(var(--primary-foreground)); }
+.bg-secondary { background-color: hsl(var(--secondary)); }
+.bg-secondary-foreground { background-color: hsl(var(--secondary-foreground)); }
+.bg-muted { background-color: hsl(var(--muted)); }
+.bg-muted-foreground { background-color: hsl(var(--muted-foreground)); }
+.bg-card { background-color: hsl(var(--card)); }
+.bg-card-foreground { background-color: hsl(var(--card-foreground)); }
+.bg-destructive { background-color: hsl(var(--destructive)); }
+.bg-destructive-foreground { background-color: hsl(var(--destructive-foreground)); }
+
+.text-background { color: hsl(var(--background)); }
+.text-foreground { color: hsl(var(--foreground)); }
+.text-primary { color: hsl(var(--primary)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+.text-secondary { color: hsl(var(--secondary)); }
+.text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+.text-muted { color: hsl(var(--muted)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }
+.text-card { color: hsl(var(--card)); }
+.text-card-foreground { color: hsl(var(--card-foreground)); }
+.text-destructive { color: hsl(var(--destructive)); }
+.text-destructive-foreground { color: hsl(var(--destructive-foreground)); }
+
+.border-border { border-color: hsl(var(--border)); }
+.border-input { border-color: hsl(var(--input)); }
+.border-primary { border-color: hsl(var(--primary)); }
+.border-secondary { border-color: hsl(var(--secondary)); }
+.border-muted { border-color: hsl(var(--muted)); }
+.border-destructive { border-color: hsl(var(--destructive)); }
+
+/* Focus styles */
+.focus-visible:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border));
+}

@@ -1,0 +1,762 @@
+// Tenant App Schema - Full ERP Features
+// Handles all business operations for a tenant (organization)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ORGANIZATION & STATE BRANCH MANAGEMENT
+// ============================================================================
+
+model Organization {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  logo        String?
+  website     String?
+  industry    String?
+
+  // Business Information
+  panNumber String? // Company PAN
+  cinNumber String? // Corporate Identification Number
+  country   String  @default("IN")
+  currency  String  @default("INR")
+  timezone  String  @default("Asia/Kolkata")
+
+  // Platform Connection
+  platformTenantId String @unique // Links to central platform
+
+  // Status
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  stateBranches StateBranch[]
+  users         User[]
+  departments   Department[]
+  roles         Role[]
+  permissions   Permission[]
+  customers     Customer[]
+  suppliers     Supplier[]
+  products      Product[]
+  transactions  Transaction[]
+  gstReturns    GSTReturn[]
+  auditLogs     AuditLog[]
+
+  // Customization relations
+  tenantCustomizations TenantCustomization[]
+  tenantThemes         TenantTheme[]
+  tenantWidgets        TenantWidget[]
+  tenantCustomFields   TenantCustomField[]
+  tenantWorkflows      TenantWorkflow[]
+
+  @@map("organizations")
+}
+
+model StateBranch {
+  id             String @id @default(cuid())
+  organizationId String
+  stateName      String // "Maharashtra", "Karnataka"
+  stateCode      String // "MH", "KA"
+  gstNumber      String // State-specific GST registration
+  branchName     String // "Mumbai Office", "Bangalore Branch"
+  branchCode     String // Internal branch code
+
+  // Address Information
+  address Json // Complete address details
+  pinCode String
+  city    String
+
+  // Branch Configuration
+  isHeadOffice Boolean @default(false)
+  isActive     Boolean @default(true)
+
+  // GST Configuration for this state
+  gstConfiguration Json // CGST, SGST rates, exemptions
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users              User[]
+  customers          Customer[]
+  suppliers          Supplier[]
+  transactions       Transaction[]
+  gstReturns         GSTReturn[]
+  inventoryLocations InventoryLocation[]
+
+  @@unique([organizationId, stateCode])
+  @@unique([organizationId, branchCode])
+  @@map("state_branches")
+}
+
+// ============================================================================
+// USER MANAGEMENT WITH STATE-BASED ACCESS CONTROL
+// ============================================================================
+
+model User {
+  id             String  @id @default(cuid())
+  organizationId String
+  email          String  @unique
+  username       String? @unique
+  firstName      String
+  lastName       String
+  phone          String?
+  avatar         String?
+  passwordHash   String?
+
+  // State-based Access Control
+  stateBranchId     String? // NULL for tenant admins (company-wide access)
+  isStateRestricted Boolean @default(true) // false for tenant admins
+
+  // User Status
+  emailVerified DateTime?
+  phoneVerified DateTime?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+
+  // Employment Details
+  employeeId   String?
+  designation  String?
+  departmentId String?
+  managerId    String?
+  joinDate     DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stateBranch  StateBranch? @relation(fields: [stateBranchId], references: [id])
+  department   Department?  @relation("DepartmentEmployees", fields: [departmentId], references: [id])
+  manager      User?        @relation("UserManager", fields: [managerId], references: [id])
+  subordinates User[]       @relation("UserManager")
+
+  // RBAC
+  userRoles UserRole[]
+
+  // Business Relations
+  assignedCustomers   Customer[]    @relation("CustomerAssignments")
+  createdTransactions Transaction[] @relation("TransactionCreator")
+
+  // Audit
+  auditLogs AuditLog[] @relation("AuditUser")
+
+  // Sessions
+  sessions Session[]
+
+  // Customization relations
+  tenantCustomizationsCreated    TenantCustomization[] @relation("TenantCustomizationCreatedBy")
+  tenantCustomizationsUpdated    TenantCustomization[] @relation("TenantCustomizationUpdatedBy")
+  tenantThemesCreated            TenantTheme[]         @relation("TenantThemeCreatedBy")
+  tenantThemesUpdated            TenantTheme[]         @relation("TenantThemeUpdatedBy")
+  tenantWidgets                  TenantWidget[]
+  tenantWidgetsCreated           TenantWidget[]        @relation("TenantWidgetCreatedBy")
+  tenantWidgetsUpdated           TenantWidget[]        @relation("TenantWidgetUpdatedBy")
+  tenantCustomFieldsCreated      TenantCustomField[]   @relation("TenantCustomFieldCreatedBy")
+  tenantCustomFieldsUpdated      TenantCustomField[]   @relation("TenantCustomFieldUpdatedBy")
+  tenantWorkflowsCreated         TenantWorkflow[]      @relation("TenantWorkflowCreatedBy")
+  tenantWorkflowsUpdated         TenantWorkflow[]      @relation("TenantWorkflowUpdatedBy")
+
+  @@map("users")
+}
+
+model Department {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  code           String
+  description    String?
+  parentId       String?
+  managerId      String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children     Department[] @relation("DepartmentHierarchy")
+  employees    User[]       @relation("DepartmentEmployees")
+
+  @@unique([organizationId, code])
+  @@map("departments")
+}
+
+model Role {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  level          Int      @default(1)
+  isSystemRole   Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  RolePermission[]
+  userRoles    UserRole[]
+
+  @@unique([organizationId, name])
+  @@map("roles")
+}
+
+model Permission {
+  id             String           @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  module         ModuleType
+  action         PermissionAction
+  scope          PermissionScope
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+
+  @@unique([organizationId, name])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id         String    @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedBy String?
+  assignedAt DateTime  @default(now())
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Customer {
+  id             String  @id @default(cuid())
+  organizationId String
+  stateBranchId  String
+  code           String
+  name           String
+  email          String?
+  phone          String?
+  website        String?
+  billingAddress  Json
+  shippingAddress Json?
+  gstNumber    String?
+  panNumber    String?
+  customerType CustomerType @default(B2B)
+  category    String?
+  creditLimit Float   @default(0)
+  creditDays  Int     @default(30)
+  isInterstate Boolean @default(false)
+  contactPerson String?
+  assignedTo    String?
+  status   CustomerStatus @default(ACTIVE)
+  isActive Boolean        @default(true)
+  notes    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stateBranch  StateBranch   @relation(fields: [stateBranchId], references: [id])
+  assignedUser User?         @relation("CustomerAssignments", fields: [assignedTo], references: [id])
+  transactions Transaction[]
+  customFields      Json     @default("{}")
+  @@unique([organizationId, code])
+  @@map("customers")
+}
+
+model Supplier {
+  id             String  @id @default(cuid())
+  organizationId String
+  stateBranchId  String
+  code           String
+  name           String
+  email          String?
+  phone          String?
+  website        String?
+  address Json
+  gstNumber    String?
+  panNumber    String?
+  supplierType SupplierType @default(GOODS)
+  paymentTerms Int   @default(30)
+  creditLimit  Float @default(0)
+  isInterstate Boolean @default(false)
+  isActive Boolean @default(true)
+  notes    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stateBranch  StateBranch   @relation(fields: [stateBranchId], references: [id])
+  transactions Transaction[]
+  customFields      Json     @default("{}")
+  @@unique([organizationId, code])
+  @@map("suppliers")
+}
+
+model Product {
+  id             String  @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  description    String?
+  category    String?
+  subcategory String?
+  brand       String?
+  model       String?
+  hsnCode     String?
+  gstCategory String  @default("goods")
+  basePrice     Float @default(0)
+  sellingPrice  Float @default(0)
+  purchasePrice Float @default(0)
+  unit          String @default("PCS")
+  minStockLevel Float  @default(0)
+  maxStockLevel Float  @default(0)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventory        InventoryItem[]
+  transactionItems TransactionItem[]
+  customFields      Json     @default("{}")
+  @@unique([organizationId, code])
+  @@map("products")
+}
+
+model Transaction {
+  id                String  @id @default(cuid())
+  organizationId    String
+  fromStateBranchId String
+  toStateBranchId   String?
+  transactionNumber String          @unique
+  transactionType   TransactionType
+  transactionDate   DateTime
+  dueDate           DateTime?
+  customerId String?
+  supplierId String?
+  subtotal       Float @default(0)
+  discountAmount Float @default(0)
+  taxableAmount  Float @default(0)
+  cgstRate       Float?
+  sgstRate       Float?
+  igstRate       Float?
+  cessRate       Float?
+  cgstAmount     Float  @default(0)
+  sgstAmount     Float  @default(0)
+  igstAmount     Float  @default(0)
+  cessAmount     Float  @default(0)
+  totalTaxAmount Float  @default(0)
+  totalAmount    Float  @default(0)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod String?
+  paymentDate   DateTime?
+  gstReturnId    String?
+  invoiceNumber  String?
+  eWayBillNumber String?
+  status    TransactionStatus @default(DRAFT)
+  notes     String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromStateBranch StateBranch       @relation(fields: [fromStateBranchId], references: [id])
+  customer        Customer?         @relation(fields: [customerId], references: [id])
+  supplier        Supplier?         @relation(fields: [supplierId], references: [id])
+  gstReturn       GSTReturn?        @relation(fields: [gstReturnId], references: [id])
+  createdByUser   User              @relation("TransactionCreator", fields: [createdBy], references: [id])
+  items           TransactionItem[]
+  customFields      Json     @default("{}")
+  @@map("transactions")
+}
+
+model GSTReturn {
+  id             String @id @default(cuid())
+  organizationId String
+  stateBranchId  String
+  returnType   TenantGSTReturnType
+  periodMonth  Int // 1-12
+  periodYear   Int
+  filingStatus FilingStatus  @default(DRAFT)
+  totalSales     Float @default(0)
+  totalPurchases Float @default(0)
+  cgstPayable    Float @default(0)
+  sgstPayable    Float @default(0)
+  igstPayable    Float @default(0)
+  cessPayable    Float @default(0)
+  inputTaxCredit Float @default(0)
+  netTaxPayable  Float @default(0)
+  preparedBy     String?
+  reviewedBy     String?
+  filedBy        String?
+  filedDate      DateTime?
+  acknowledgment String?
+  dueDate        DateTime
+  penaltyAmount  Float    @default(0)
+  interestAmount Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stateBranch  StateBranch   @relation(fields: [stateBranchId], references: [id])
+  transactions Transaction[]
+  @@unique([organizationId, stateBranchId, returnType, periodMonth, periodYear])
+  @@map("gst_returns")
+}
+
+model InventoryLocation {
+  id            String  @id @default(cuid())
+  stateBranchId String
+  name          String
+  code          String
+  description   String?
+  address       Json?
+  isActive      Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  stateBranch StateBranch     @relation(fields: [stateBranchId], references: [id])
+  inventory   InventoryItem[]
+  @@unique([stateBranchId, code])
+  @@map("inventory_locations")
+}
+
+model AuditLog {
+  id             String @id @default(cuid())
+  organizationId String
+  action     String
+  entityType String
+  entityId   String?
+  oldValues  Json?
+  newValues  Json?
+  userId    String?
+  ipAddress String?
+  userAgent String?
+  success      Boolean @default(true)
+  errorMessage String?
+  timestamp DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation("AuditUser", fields: [userId], references: [id])
+  @@index([organizationId, timestamp])
+  @@index([entityType, entityId])
+  @@index([userId, timestamp])
+  @@map("audit_logs")
+}
+
+model TenantCustomization {
+  id                String   @id @default(cuid())
+  organizationId    String
+  branding          Json     @default("{}")
+  dashboard         Json     @default("{}")
+  customFields      Json     @default("{}")
+  workflows         Json     @default("{}")
+  preferences       Json     @default("{}")
+  version           Int      @default(1)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantCustomizationCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantCustomizationUpdatedBy", fields: [updatedBy], references: [id])
+  @@map("tenant_customizations")
+}
+
+model TenantTheme {
+  id                String   @id @default(cuid())
+  organizationId    String
+  themeName         String
+  themeData         Json
+  isDefault         Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  version           String   @default("1.0.0")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantThemeCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantThemeUpdatedBy", fields: [updatedBy], references: [id])
+  @@unique([organizationId, themeName])
+  @@map("tenant_themes")
+}
+
+model TenantWidget {
+  id                String   @id @default(cuid())
+  organizationId    String
+  userId            String?
+  widgetType        String
+  widgetTitle       String
+  position          Json
+  configuration     Json     @default("{}")
+  isVisible         Boolean  @default(true)
+  isLocked          Boolean  @default(false)
+  order             Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantWidgetCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantWidgetUpdatedBy", fields: [updatedBy], references: [id])
+  @@map("tenant_widgets")
+}
+
+model TenantCustomField {
+  id                String   @id @default(cuid())
+  organizationId    String
+  entityType        String
+  fieldName         String
+  fieldLabel        String
+  fieldType         String
+  isRequired        Boolean  @default(false)
+  isVisible         Boolean  @default(true)
+  isEditable        Boolean  @default(true)
+  validationRules   Json     @default("{}")
+  defaultValue      String?
+  displayOrder      Int      @default(0)
+  groupName         String?
+  helpText          String?
+  placeholder       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantCustomFieldCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantCustomFieldUpdatedBy", fields: [updatedBy], references: [id])
+  @@unique([organizationId, entityType, fieldName])
+  @@map("tenant_custom_fields")
+}
+
+model TenantWorkflow {
+  id                String   @id @default(cuid())
+  organizationId    String
+  workflowName      String
+  workflowType      String
+  entityType        String
+  triggerConditions Json     @default("{}")
+  actions           Json     @default("{}")
+  approvalSteps     Json     @default("{}")
+  isActive          Boolean  @default(true)
+  priority          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String
+  updatedBy         String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser     User         @relation("TenantWorkflowCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     User         @relation("TenantWorkflowUpdatedBy", fields: [updatedBy], references: [id])
+  @@unique([organizationId, workflowName])
+  @@map("tenant_workflows")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("sessions")
+}
+
+enum CustomerType {
+  B2B
+  B2C
+  EXPORT
+  DEALER
+  DISTRIBUTOR
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
+enum SupplierType {
+  GOODS
+  SERVICES
+  BOTH
+  CONTRACTOR
+}
+
+enum TransactionType {
+  SALE_INVOICE
+  PURCHASE_INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+  QUOTATION
+  PURCHASE_ORDER
+  DELIVERY_NOTE
+  RECEIPT_NOTE
+  RETURN_SALE
+  RETURN_PURCHASE
+}
+
+enum TransactionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  DELIVERED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  VOID
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  REFUNDED
+}
+
+enum TenantGSTReturnType {
+  GSTR1
+  GSTR3B
+  GSTR9
+  GSTR2A
+  GSTR4
+}
+
+enum FilingStatus {
+  DRAFT
+  PREPARED
+  UNDER_REVIEW
+  READY_TO_FILE
+  FILED
+  LATE_FILED
+  REVISED
+  REJECTED
+}
+
+enum ModuleType {
+  FINANCIAL
+  INVENTORY
+  CRM
+  HUMAN_RESOURCES
+  MANUFACTURING
+  PROJECT_MANAGEMENT
+  ADMINISTRATION
+  REPORTS
+  GST_COMPLIANCE
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  APPROVE
+  EXPORT
+  IMPORT
+  MANAGE
+}
+
+enum PermissionScope {
+  GLOBAL
+  ORGANIZATION
+  STATE_BRANCH
+  DEPARTMENT
+  TEAM
+  PERSONAL
+}
+
+enum UserRoleType {
+  TENANT_ADMIN
+  STATE_ADMIN
+  STATE_MANAGER
+  ACCOUNTS_MANAGER
+  SALES_MANAGER
+  PURCHASE_MANAGER
+  INVENTORY_MANAGER
+  ACCOUNTS_USER
+  SALES_USER
+  PURCHASE_USER
+  INVENTORY_USER
+  REPORT_VIEWER
+  GUEST_USER
+}
+
+model InventoryItem {
+  id           String @id @default(cuid())
+  productId    String
+  locationId   String
+  quantity     Float  @default(0)
+  reservedQty  Float  @default(0)
+  availableQty Float  @default(0)
+  averageCost Float @default(0)
+  lastCost    Float @default(0)
+  reorderLevel Float @default(0)
+  maxLevel     Float @default(0)
+  lastUpdated   DateTime  @default(now())
+  lastStockTake DateTime?
+  product  Product           @relation(fields: [productId], references: [id])
+  location InventoryLocation @relation(fields: [locationId], references: [id])
+  @@unique([productId, locationId])
+  @@map("inventory_items")
+}
+
+model TransactionItem {
+  id            String @id @default(cuid())
+  transactionId String
+  productId     String
+  description    String?
+  quantity       Float
+  unit           String  @default("PCS")
+  unitPrice      Float   @default(0)
+  discountRate   Float   @default(0)
+  discountAmount Float   @default(0)
+  lineTotal      Float   @default(0)
+  hsnCode   String?
+  gstRate   Float   @default(0)
+  cgstRate  Float   @default(0)
+  sgstRate  Float   @default(0)
+  igstRate  Float   @default(0)
+  taxAmount Float   @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+  @@map("transaction_items")
+}
+
+// ... 
