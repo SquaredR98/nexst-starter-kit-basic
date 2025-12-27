@@ -1,0 +1,12 @@
+// TIER: BASIC - Entity exports
+export { BaseEntity } from './base.entity';
+export { User } from './user.entity';
+export { Profile } from './profile.entity';
+export { Role } from './role.entity';
+export { Permission } from './permission.entity';
+export { UserRole } from './user-role.entity';
+export { RolePermission } from './role-permission.entity';
+export { Session } from './session.entity';
+export { OAuthAccount } from './oauth-account.entity';
+export { TwoFactor } from './two-factor.entity';
+export { PasswordHistory } from './password-history.entity';
