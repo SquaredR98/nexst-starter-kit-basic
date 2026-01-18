@@ -12,6 +12,7 @@ import Keyv from 'keyv';
 import Redis from 'ioredis';
 import { JwtAuthModule } from './modules/auth/jwt/jwt.module';
 import { PasswordModule } from './modules/auth/password/password.module';
+import { OAuthModule } from './modules/auth/oauth/oauth.module';
 import { SessionModule } from './modules/session/session.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { UserModule } from './modules/user/user.module';
@@ -72,6 +73,7 @@ import { TwoFactorModule } from './modules/two-factor/two-factor.module';
     // Auth Modules
     JwtAuthModule,
     PasswordModule,
+    OAuthModule,
     SessionModule,
     RbacModule,
     UserModule,
