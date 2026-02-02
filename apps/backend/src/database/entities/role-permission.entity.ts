@@ -11,6 +11,7 @@ export class RolePermission {
   permissionId: string;
 
   @ManyToOne(() => Role, (role) => role.permissions, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'role_id' })
   role: Role;
 
   @ManyToOne(() => Permission, (permission) => permission.roles, {

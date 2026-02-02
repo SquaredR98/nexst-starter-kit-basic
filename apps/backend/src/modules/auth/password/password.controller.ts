@@ -7,12 +7,15 @@ import {
   Req,
   UseGuards,
   Patch,
+  Query,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { PasswordService } from './password.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto, TokenResponseDto } from '../jwt/dto/tokens.dto';
 import { JwtAuthService } from '../jwt/jwt.service';
 import { Public } from '../jwt/decorators/public.decorator';
@@ -110,5 +113,37 @@ export class PasswordController {
       }
     }
     return { message: 'Logged out successfully' };
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Query('token') token: string): Promise<{ message: string }> {
+    await this.passwordService.verifyEmail(token);
+    return { message: 'Email verified successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(@CurrentUser() user: User): Promise<{ message: string }> {
+    await this.passwordService.resendVerificationEmail(user.id);
+    return { message: 'Verification email sent' };
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+    await this.passwordService.forgotPassword(forgotPasswordDto);
+    return { message: 'If your email exists in our system, you will receive a password reset link' };
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    await this.passwordService.resetPassword(resetPasswordDto);
+    return { message: 'Password reset successfully. Please login with your new password.' };
   }
 }

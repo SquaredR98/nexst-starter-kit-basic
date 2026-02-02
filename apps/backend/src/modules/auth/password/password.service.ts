@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Inject,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { User } from '../../../database/entities/user.entity';
 import { Profile } from '../../../database/entities/profile.entity';
 import { Session } from '../../../database/entities/session.entity';
@@ -19,9 +21,12 @@ import { PasswordHistory } from '../../../database/entities/password-history.ent
 import { UserRole } from '../../../database/entities/user-role.entity';
 import { Role } from '../../../database/entities/role.entity';
 import { JwtAuthService } from '../jwt/jwt.service';
+import { EmailService } from '../../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokenPair } from '../jwt/interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -46,6 +51,7 @@ export class PasswordService {
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
     private readonly jwtAuthService: JwtAuthService,
+    private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
@@ -141,6 +147,13 @@ export class PasswordService {
     );
 
     this.logger.log(`User registered successfully: ${email}`);
+
+    // Send verification email asynchronously (don't wait for it)
+    this.sendVerificationEmail(savedUser.id, email, firstName || 'User').catch(
+      (error) => {
+        this.logger.error('Failed to send verification email', error);
+      },
+    );
 
     return tokens;
   }
@@ -415,5 +428,212 @@ export class PasswordService {
     }
 
     await this.cacheManager.set(cacheKey, current + 1, windowSeconds * 1000);
+  }
+
+  /**
+   * Send verification email to user
+   */
+  private async sendVerificationEmail(
+    userId: string,
+    email: string,
+    firstName: string,
+  ): Promise<void> {
+    // Generate verification token
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = await bcrypt.hash(token, 10);
+
+    // Store token in cache (expires in 24 hours)
+    await this.cacheManager.set(
+      `email-verification:${userId}`,
+      hashedToken,
+      24 * 60 * 60 * 1000,
+    );
+
+    // Send email
+    await this.emailService.sendVerificationEmail(email, firstName, token);
+
+    this.logger.log(`Verification email sent to: ${email}`);
+  }
+
+  /**
+   * Verify email with token
+   */
+  async verifyEmail(token: string): Promise<void> {
+    // Get all users without email verification
+    const allUsers = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.emailVerified IS NULL')
+      .getMany();
+
+    let matchedUser: User | null = null;
+
+    for (const user of allUsers) {
+      const storedHash = await this.cacheManager.get<string>(
+        `email-verification:${user.id}`,
+      );
+      if (storedHash && (await bcrypt.compare(token, storedHash))) {
+        matchedUser = user;
+        break;
+      }
+    }
+
+    if (!matchedUser) {
+      throw new BadRequestException(
+        'Invalid or expired verification token',
+      );
+    }
+
+    if (matchedUser.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    await this.userRepository.update(
+      { id: matchedUser.id },
+      { emailVerified: new Date() },
+    );
+
+    // Remove token from cache
+    await this.cacheManager.del(`email-verification:${matchedUser.id}`);
+
+    // Send welcome email
+    const profile = await this.profileRepository.findOne({
+      where: { userId: matchedUser.id },
+    });
+    const firstName = profile?.firstName || 'User';
+
+    await this.emailService.sendWelcomeEmail(matchedUser.email, firstName);
+
+    this.logger.log(`Email verified for user: ${matchedUser.email}`);
+  }
+
+  /**
+   * Resend verification email
+   */
+  async resendVerificationEmail(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['profile'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    // Check rate limit (max 3 per hour)
+    await this.checkRateLimit(`resend-verification:${userId}`, 3, 3600);
+
+    const firstName = user.profile?.firstName || 'User';
+    await this.sendVerificationEmail(user.id, user.email, firstName);
+  }
+
+  /**
+   * Request password reset
+   */
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
+    const { email } = forgotPasswordDto;
+
+    const user = await this.userRepository.findOne({
+      where: { email: email.toLowerCase() },
+      relations: ['profile'],
+    });
+
+    // Always return success to prevent user enumeration
+    if (!user) {
+      this.logger.warn(`Password reset requested for non-existent email: ${email}`);
+      return;
+    }
+
+    // Check rate limit (max 3 per hour per user)
+    await this.checkRateLimit(`forgot-password:${user.id}`, 3, 3600);
+
+    // Generate reset token
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = await bcrypt.hash(token, 10);
+
+    // Store token in cache (expires in 1 hour)
+    await this.cacheManager.set(
+      `password-reset:${user.id}`,
+      hashedToken,
+      60 * 60 * 1000,
+    );
+
+    // Send reset email
+    const firstName = user.profile?.firstName || 'User';
+    await this.emailService.sendPasswordResetEmail(user.email, firstName, token);
+
+    this.logger.log(`Password reset email sent to: ${email}`);
+  }
+
+  /**
+   * Reset password with token
+   */
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
+    const { token, password } = resetPasswordDto;
+
+    // Get all users to check for matching token
+    const allUsers = await this.userRepository.find();
+
+    let matchedUser: User | null = null;
+
+    for (const user of allUsers) {
+      const storedHash = await this.cacheManager.get<string>(
+        `password-reset:${user.id}`,
+      );
+      if (storedHash && (await bcrypt.compare(token, storedHash))) {
+        matchedUser = user;
+        break;
+      }
+    }
+
+    if (!matchedUser) {
+      throw new BadRequestException(
+        'Invalid or expired password reset token',
+      );
+    }
+
+    // Check if new password is same as current
+    if (matchedUser.passwordHash) {
+      const isSamePassword = await this.verifyPassword(
+        password,
+        matchedUser.passwordHash,
+      );
+
+      if (isSamePassword) {
+        throw new BadRequestException(
+          'New password must be different from current password',
+        );
+      }
+    }
+
+    // Check password history
+    await this.checkPasswordHistory(matchedUser.id, password);
+
+    // Hash new password
+    const newPasswordHash = await this.hashPassword(password);
+
+    // Update password
+    await this.userRepository.update(
+      { id: matchedUser.id },
+      {
+        passwordHash: newPasswordHash,
+        failedAttempts: 0,
+        lockedUntil: null,
+      },
+    );
+
+    // Add to password history
+    await this.addPasswordToHistory(matchedUser.id, newPasswordHash);
+
+    // Remove token from cache
+    await this.cacheManager.del(`password-reset:${matchedUser.id}`);
+
+    // Revoke all existing sessions (force re-login)
+    await this.jwtAuthService.revokeAllUserSessions(matchedUser.id);
+
+    this.logger.log(`Password reset successfully for user: ${matchedUser.email}`);
   }
 }

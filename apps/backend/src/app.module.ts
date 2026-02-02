@@ -17,6 +17,7 @@ import { SessionModule } from './modules/session/session.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { UserModule } from './modules/user/user.module';
 import { TwoFactorModule } from './modules/two-factor/two-factor.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { TwoFactorModule } from './modules/two-factor/two-factor.module';
     RbacModule,
     UserModule,
     TwoFactorModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

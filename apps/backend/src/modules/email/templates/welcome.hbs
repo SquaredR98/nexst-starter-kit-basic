@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to NEXST Starter Kit</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f9fafb;
+      color: #374151;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .header {
+      background-color: #000000;
+      color: #ffffff;
+      padding: 32px 40px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 40px;
+    }
+    .content h2 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #000000;
+    }
+    .content p {
+      margin: 0 0 24px 0;
+      line-height: 1.6;
+      color: #4b5563;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 28px;
+      background-color: #000000;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 16px;
+      text-align: center;
+    }
+    .button:hover {
+      background-color: #1f2937;
+    }
+    .footer {
+      padding: 32px 40px;
+      background-color: #f9fafb;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    .footer p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    .footer a {
+      color: #000000;
+      text-decoration: none;
+    }
+    .divider {
+      margin: 32px 0;
+      border: 0;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0;
+    }
+    .feature-list li {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      font-size: 15px;
+      color: #374151;
+    }
+    .feature-list li:last-child {
+      border-bottom: none;
+    }
+    .feature-list li::before {
+      content: "✓";
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      margin-right: 12px;
+      background-color: #000000;
+      color: #ffffff;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>NEXST Starter Kit</h1>
+    </div>
+    <div class="content">
+      <h2>Welcome, {{firstName}}!</h2>
+      <p>Your account has been successfully created and verified. You're now ready to explore all the features of NEXST Starter Kit.</p>
+
+      <p style="text-align: center; margin: 32px 0;">
+        <a href="{{dashboardUrl}}" class="button">Go to Dashboard</a>
+      </p>
+
+      <hr class="divider">
+
+      <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #000000;">What's included:</h3>
+      <ul class="feature-list">
+        <li>Secure authentication with email/password and OAuth</li>
+        <li>Two-factor authentication for enhanced security</li>
+        <li>Session management across multiple devices</li>
+        <li>Profile customization and settings</li>
+        <li>Real-time notifications and updates</li>
+      </ul>
+
+      <hr class="divider">
+
+      <p style="font-size: 14px; color: #6b7280;">
+        Need help getting started? Check out our documentation or contact our support team.
+      </p>
+    </div>
+    <div class="footer">
+      <p>This email was sent to <strong>{{email}}</strong></p>
+      <p>&copy; 2026 NEXST Starter Kit. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

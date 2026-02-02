@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from './role.entity';
 
@@ -21,8 +21,10 @@ export class UserRole {
   assignedAt: Date;
 
   @ManyToOne(() => User, (user) => user.roles, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
   @ManyToOne(() => Role, (role) => role.users, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'role_id' })
   role: Role;
 }

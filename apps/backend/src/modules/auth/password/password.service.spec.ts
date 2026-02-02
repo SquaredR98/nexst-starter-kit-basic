@@ -215,7 +215,7 @@ describe('PasswordService', () => {
   describe('changePassword', () => {
     it('should successfully change password with correct old password', async () => {
       const changePasswordDto = {
-        oldPassword: 'old-password',
+        currentPassword: 'old-password',
         newPassword: 'NewSecurePassword123!',
       };
 
@@ -242,7 +242,7 @@ describe('PasswordService', () => {
 
     it('should throw UnauthorizedException with incorrect old password', async () => {
       const changePasswordDto = {
-        oldPassword: 'wrong-old-password',
+        currentPassword: 'wrong-old-password',
         newPassword: 'NewSecurePassword123!',
       };
 

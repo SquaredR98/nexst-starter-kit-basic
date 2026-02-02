@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ObjectLiteral } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 /**
  * Create a mock repository for testing
  */
-export const createMockRepository = <T = any>(): Partial<Repository<T>> => ({
+export const createMockRepository = <T extends ObjectLiteral = any>(): Partial<Repository<T>> => ({
   find: jest.fn(),
   findOne: jest.fn(),
   findOneBy: jest.fn(),

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Two-Factor Authentication Code</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f9fafb;
+      color: #374151;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .header {
+      background-color: #000000;
+      color: #ffffff;
+      padding: 32px 40px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 40px;
+    }
+    .content h2 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #000000;
+    }
+    .content p {
+      margin: 0 0 24px 0;
+      line-height: 1.6;
+      color: #4b5563;
+    }
+    .code-box {
+      background-color: #f9fafb;
+      border: 2px solid #000000;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 32px 0;
+      text-align: center;
+    }
+    .code {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      color: #000000;
+      font-family: 'Courier New', monospace;
+    }
+    .footer {
+      padding: 32px 40px;
+      background-color: #f9fafb;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    .footer p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    .divider {
+      margin: 32px 0;
+      border: 0;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .warning-box {
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 16px;
+      margin: 24px 0;
+    }
+    .warning-box p {
+      margin: 0;
+      font-size: 14px;
+      color: #991b1b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>NEXST Starter Kit</h1>
+    </div>
+    <div class="content">
+      <h2>Hi {{firstName}},</h2>
+      <p>You requested a two-factor authentication code. Use the code below to complete your login:</p>
+
+      <div class="code-box">
+        <div class="code">{{code}}</div>
+      </div>
+
+      <p style="text-align: center; font-size: 14px; color: #6b7280;">
+        This code will expire in 10 minutes
+      </p>
+
+      <div class="warning-box">
+        <p><strong>Security Alert:</strong> If you didn't request this code, someone may be trying to access your account. Please secure your account immediately by changing your password.</p>
+      </div>
+
+      <hr class="divider">
+
+      <p style="font-size: 14px; color: #6b7280;">
+        For your security, never share this code with anyone. Our team will never ask you for your authentication codes.
+      </p>
+    </div>
+    <div class="footer">
+      <p>This email was sent to <strong>{{email}}</strong></p>
+      <p>&copy; 2026 NEXST Starter Kit. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

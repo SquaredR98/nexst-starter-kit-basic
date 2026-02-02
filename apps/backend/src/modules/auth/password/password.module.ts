@@ -7,6 +7,7 @@ import { PasswordHistory } from '../../../database/entities/password-history.ent
 import { UserRole } from '../../../database/entities/user-role.entity';
 import { Role } from '../../../database/entities/role.entity';
 import { JwtAuthModule } from '../jwt/jwt.module';
+import { EmailModule } from '../../email/email.module';
 import { PasswordService } from './password.service';
 import { PasswordController } from './password.controller';
 
@@ -21,6 +22,7 @@ import { PasswordController } from './password.controller';
       Role,
     ]),
     JwtAuthModule,
+    EmailModule,
   ],
   providers: [PasswordService],
   controllers: [PasswordController],

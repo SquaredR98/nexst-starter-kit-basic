@@ -32,7 +32,13 @@ export class UserService {
   async getCurrentUser(userId: string): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['profile', 'roles', 'roles.role'],
+      relations: [
+        'profile',
+        'roles',
+        'roles.role',
+        'roles.role.permissions',
+        'roles.role.permissions.permission',
+      ],
     });
 
     if (!user) {
@@ -48,7 +54,13 @@ export class UserService {
   async getUserById(userId: string): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['profile', 'roles', 'roles.role'],
+      relations: [
+        'profile',
+        'roles',
+        'roles.role',
+        'roles.role.permissions',
+        'roles.role.permissions.permission',
+      ],
     });
 
     if (!user) {
@@ -68,7 +80,13 @@ export class UserService {
     const skip = (page - 1) * limit;
 
     const [users, total] = await this.userRepository.findAndCount({
-      relations: ['profile', 'roles', 'roles.role'],
+      relations: [
+        'profile',
+        'roles',
+        'roles.role',
+        'roles.role.permissions',
+        'roles.role.permissions.permission',
+      ],
       skip,
       take: limit,
       order: {
@@ -190,7 +208,21 @@ export class UserService {
         }
       : null;
 
-    const roles = user.roles?.map((userRole) => userRole.role.name) || [];
+    const roles = user.roles?.map((userRole) => ({
+      role: {
+        id: userRole.role.id,
+        name: userRole.role.name,
+        description: userRole.role.description ?? null,
+        permissions: userRole.role.permissions?.map((rolePermission) => ({
+          permission: {
+            id: rolePermission.permission.id,
+            resource: rolePermission.permission.resource,
+            action: rolePermission.permission.action,
+            description: rolePermission.permission.description ?? null,
+          },
+        })) || [],
+      },
+    })) || [];
 
     return {
       id: user.id,
